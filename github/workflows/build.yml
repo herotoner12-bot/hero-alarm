@@ -1,0 +1,40 @@
+name: Build HERO ALARM APK
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: unzip -q HeroAlarm.zip
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.7" }
+
+      - name: Prepare signing key
+        run: |
+          KS="$RUNNER_TEMP/hero.jks"
+          keytool -genkeypair -keystore "$KS" -storepass heroalarm123 -keypass heroalarm123 \
+            -alias hero -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=HERO TONER"
+          echo "KEYSTORE_PATH=$KS" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=heroalarm123" >> "$GITHUB_ENV"
+          echo "KEY_ALIAS=hero" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=heroalarm123" >> "$GITHUB_ENV"
+
+      - name: Unit tests and release APK
+        working-directory: HeroAlarm
+        run: gradle :app:testDebugUnitTest :app:assembleRelease --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HERO-ALARM-apk
+          path: HeroAlarm/app/build/outputs/apk/release/*.apk
+          
